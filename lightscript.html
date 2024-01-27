@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta description="Swirling Star Cloud"/>
+        <meta publisher="WhirlwindFX" />
+        <title>Swirling Star Cloud Effect</title>
+    </head>
+
+    <body style="margin: 0; padding: 0;">
+        <canvas id="canvas" width="1000" height="500"></canvas>
+
+        <script>
+            // Setup canvas
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+
+            // Configurations
+            let speed = 0.003;
+            let particleCount = 50;
+            let particleSize = 10;
+
+            // Utility functions
+            function random(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            // Function to map distance to color
+            function getColorByDistance(distance) {
+                // Define the ranges of your distances (min and max)
+                const innerDistance = 50; // Distance closest to the black hole
+                const outerDistance = canvas.width / 2; // Maximum distance of the particles from the center
+
+                // Normalize the distance to a 0-1 range
+                const normalizedDistance = (distance - innerDistance) / (outerDistance - innerDistance);
+
+                // Define color stops
+                const colors = [
+                    { stop: 0, color: 'rgba(255, 215, 0, 1)' }, // Gold, closest to black hole
+                    { stop: 0.5, color: 'rgba(0, 255, 255, 1)' }, // Cyan, mid-way
+                    { stop: 1, color: 'rgba(128, 0, 128, 1)' }, // Purple, farthest from black hole
+                ];
+
+                // Find between which two stops the normalizedDistance lies
+                let startIndex = 0;
+                for (let i = 0; i < colors.length - 1; i++) {
+                    if (normalizedDistance >= colors[i].stop && normalizedDistance < colors[i + 1].stop) {
+                        startIndex = i;
+                        break;
+                    }
+                }
+
+                // Calculate the relative distance between the two stops
+                const rangeStart = colors[startIndex].stop;
+                const rangeEnd = colors[startIndex + 1].stop;
+                const rangeDistance = rangeEnd - rangeStart;
+                const relativeDistance = (normalizedDistance - rangeStart) / rangeDistance;
+
+                // Lerp (Linear Interpolate) between the two colors based on relativeDistance
+                function lerp(start, end, t) {
+                    return start + (end - start) * t;
+                }
+
+                // Parse the start and end colors to get the individual RGB components
+                function parseColor(colorStr) {
+                    const [r, g, b] = colorStr.match(/\d+/g).map(Number);
+                    return { r, g, b };
+                }
+
+                const startColor = parseColor(colors[startIndex].color);
+                const endColor = parseColor(colors[startIndex + 1].color);
+
+                // Lerp the color components individually
+                const r = lerp(startColor.r, endColor.r, relativeDistance);
+                const g = lerp(startColor.g, endColor.g, relativeDistance);
+                const b = lerp(startColor.b, endColor.b, relativeDistance);
+
+                // Return the interpolated color as an rgba string
+                return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, 1)`;
+            }
+
+            // Function to draw a star
+            function drawStar(x, y, size, color) {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(0, 0, size, 0, Math.PI * 2, false);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Function to create swirling particles
+            const particles = [];
+            function createParticles() {
+                for (let i = 0; i < particleCount; i++) {
+                    const distance = random(50, canvas.width / 2);
+
+                    particles.push({
+                        x: canvas.width / 2,
+                        y: canvas.height / 2,
+                        angle: random(0, Math.PI * 2),
+                        distance: distance,
+                        size: particleSize,
+                        color: getColorByDistance(distance),
+                    });
+                }
+            }
+
+            // Function to update particles positions to create the swirling effect
+            function updateParticles() {
+                particles.forEach(particle => {
+                    particle.angle += speed;
+                    particle.x = canvas.width / 2 + Math.cos(particle.angle) * particle.distance;
+                    particle.y = canvas.height / 2 + Math.sin(particle.angle) * particle.distance;
+                });
+            }
+
+            // Global variables for animating the gradient
+            let gradientOffset = 0;
+
+            // Function to draw the black hole with a moving gradient veil
+            function drawBlackHole() {
+                const blackHoleRadius = 15;
+                const x = canvas.width / 2;
+                const y = canvas.height / 2;
+
+                // Draw the black hole itself
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(x, y, blackHoleRadius, 0, Math.PI * 2, false);
+                ctx.fillStyle = 'black';
+                ctx.fill();
+                ctx.restore();
+
+                // Draw the semi-transparent moving gradient veil
+                ctx.save();
+                const gradient = ctx.createRadialGradient(x, y, blackHoleRadius, x, y, blackHoleRadius + 15);
+                // Offset the gradient colors for animation
+                gradient.addColorStop(0.0, 'rgba(0, 0, 0, 0)');
+                gradient.addColorStop(0.5 + gradientOffset, 'rgba(55, 79, 135, 0.8)'); // Blue-ish semi-transparent
+                gradient.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+
+                ctx.beginPath();
+                ctx.arc(x, y, blackHoleRadius + 20, 0, Math.PI * 2, false);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // The animate loop
+            function animate() {
+                requestAnimationFrame(animate);
+
+                // Update gradient offset
+                gradientOffset += 0.003;
+                if (gradientOffset >= 0.5) {
+                    gradientOffset = 0;
+                }
+                
+                // Clear the canvas
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'; // Trail effect
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw the black hole
+                drawBlackHole();
+                
+                // Update and draw particles
+                updateParticles();
+                particles.forEach(particle => {
+                    drawStar(particle.x, particle.y, particle.size, particle.color);
+                });
+            }
+
+            // Initialize particles and start the animation
+            createParticles();
+            animate();
+        </script>
+    </body>
+</html>
